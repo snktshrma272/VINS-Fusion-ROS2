@@ -275,10 +275,12 @@ bool Estimator::getIMUInterval(double t0, double t1, vector<pair<double, Eigen::
 
 bool Estimator::IMUAvailable(double t)
 {
-    if(!accBuf.empty() && t <= accBuf.back().first)
+    std::cout << t << " " << accBuf.back().first << std::endl;
+    if(!accBuf.empty() && t <= accBuf.back().first) {
         return true;
-    else
+    } else {
         return false;
+    }
 }
 
 void Estimator::processMeasurements()

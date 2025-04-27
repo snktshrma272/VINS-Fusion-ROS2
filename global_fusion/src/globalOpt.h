@@ -38,6 +38,8 @@ public:
 	GlobalOptimization();
 	~GlobalOptimization();
 	void inputGPS(double t, double latitude, double longitude, double altitude, double posAccuracy);
+	void inputVPS(double t, double x, double y, double z, double posAccuracy);
+
 	void inputOdom(double t, Eigen::Vector3d OdomP, Eigen::Quaterniond OdomQ);
 	void getGlobalOdom(Eigen::Vector3d &odomP, Eigen::Quaterniond &odomQ);
 	nav_msgs::msg::Path global_path;
@@ -55,10 +57,15 @@ private:
 	map<double, vector<double>> localPoseMap;
 	map<double, vector<double>> globalPoseMap;
 	map<double, vector<double>> GPSPositionMap;
+	map<double, vector<double>> VPSPositionMap;
 	bool initGPS;
 	bool newGPS;
+
+	bool initVPS;
+	bool newVPS;
 	GeographicLib::LocalCartesian geoConverter;
 	std::mutex mPoseMap;
+	std::mutex nPoseMap;
 	Eigen::Matrix4d WGPS_T_WVIO;
 	Eigen::Vector3d lastP;
 	Eigen::Quaterniond lastQ;

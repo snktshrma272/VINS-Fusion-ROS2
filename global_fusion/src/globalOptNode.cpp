@@ -32,7 +32,13 @@ rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub_car;
 nav_msgs::msg::Path *global_path;
 double last_vio_t = -1;
 std::queue<sensor_msgs::msg::NavSatFix::SharedPtr> gpsQueue;
+std::queue<nav_msgs::msg::Odometry::SharedPtr> vpsQueue;
 std::mutex m_buf;
+std::mutex n_buf;
+
+void lerp(int t,nav_msgs::msg::Odometry vpsPos) {
+    return;
+}
 
 void publish_car_model(double t, Eigen::Vector3d t_w_car, Eigen::Quaterniond q_w_car)
 {
@@ -94,7 +100,7 @@ void vio_callback(const nav_msgs::msg::Odometry::SharedPtr pose_msg)
 
 
     m_buf.lock();
-    while(!gpsQueue.empty())
+    while(!gpsQueue.empty() && vpsQueue.empty())
     {
         sensor_msgs::msg::NavSatFix::ConstPtr GPS_msg = gpsQueue.front();
         double gps_t = GPS_msg->header.stamp.sec;
@@ -122,6 +128,36 @@ void vio_callback(const nav_msgs::msg::Odometry::SharedPtr pose_msg)
             break;
     }
     m_buf.unlock();
+
+    n_buf.lock();
+    while(!vpsQueue.empty() && gpsQueue.empty())
+    {
+        nav_msgs::msg::Odometry::ConstPtr VPS_msg = vpsQueue.front();
+        double vps_t = VPS_msg->header.stamp.sec;
+        printf("vio t: %f, vps t: %f \n", t, vps_t);
+        // 10ms sync tolerance
+        if(vps_t >= t - 0.01 && vps_t <= t + 0.01)
+        {
+            //printf("receive VPS with timestamp %f\n", VPS_msg->header.stamp.sec);
+            double x = VPS_msg->pose.pose.position.x;
+            double y = VPS_msg->pose.pose.position.y;
+            double z = VPS_msg->pose.pose.position.z;
+            //int numSats = VPS_msg->status.service;
+            double pos_accuracy = VPS_msg->pose.covariance[0]; // TODO: Check this and finalize this one
+            if(pos_accuracy <= 0)
+                pos_accuracy = 1;
+            //printf("receive covariance %lf \n", pos_accuracy);
+            //if(GPS_msg->status.status > 8)
+                globalEstimator.inputVPS(t, x, y, z, pos_accuracy);
+            vpsQueue.pop();
+            break;
+        }
+        else if(vps_t < t - 0.01)
+            vpsQueue.pop();
+        else if(vps_t > t + 0.01)
+            break;
+    }
+    n_buf.unlock();
 
     Eigen::Vector3d global_t;
     Eigen:: Quaterniond global_q;
@@ -167,7 +203,12 @@ void GPS_callback(const sensor_msgs::msg::NavSatFix::SharedPtr GPS_msg)
     m_buf.unlock();
 }
 
-
+void VPS_callback(const nav_msgs::msg::Odometry::SharedPtr VPS_msg)
+{
+    n_buf.lock();
+    vpsQueue.push(VPS_msg);
+    n_buf.unlock();
+}
 
 
 int main(int argc, char **argv)
@@ -178,6 +219,8 @@ int main(int argc, char **argv)
 
 
     auto sub_GPS = n->create_subscription<sensor_msgs::msg::NavSatFix>("/gps", rclcpp::QoS(rclcpp::KeepLast(100)), GPS_callback);
+
+    auto sub_VPS = n->create_subscription<nav_msgs::msg::Odometry>("/vps", rclcpp::QoS(rclcpp::KeepLast(100)), VPS_callback);
 
     auto sub_vio = n->create_subscription<nav_msgs::msg::Odometry>("/vins_estimator/odometry", rclcpp::QoS(rclcpp::KeepLast(100)), vio_callback);
 
