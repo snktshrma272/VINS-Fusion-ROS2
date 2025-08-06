@@ -19,7 +19,9 @@ find_package(tf2_ros REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(camera_models REQUIRED)
 find_package(image_transport REQUIRED)
-
+find_package(rosbag2_transport REQUIRED)
+find_package(ament_cmake_python REQUIRED)
+find_package(rclpy REQUIRED)
 
 find_package(OpenCV REQUIRED)
 find_package(Ceres REQUIRED)
@@ -35,6 +37,13 @@ include_directories(
   ${EIGEN3_INCLUDE_DIR}
 )
 
+# Install Python modules
+ament_python_install_package(${PROJECT_NAME})
+# Install Python executables
+install(PROGRAMS
+  scripts/graphPath.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 add_library(vins_lib
     src/estimator/parameters.cpp
@@ -61,6 +70,9 @@ add_executable(vins_node src/rosNodeTest.cpp)
 ament_target_dependencies(vins_node rclcpp rcpputils std_msgs visualization_msgs geometry_msgs nav_msgs tf2 tf2_ros cv_bridge camera_models image_transport)
 target_link_libraries(vins_node vins_lib) 
 
+add_executable(of_node src/pureOF.cpp)
+ament_target_dependencies(of_node rclcpp rcpputils std_msgs visualization_msgs geometry_msgs nav_msgs tf2 tf2_ros cv_bridge camera_models image_transport)
+
 add_executable(kitti_odom_test src/KITTIOdomTest.cpp)
 ament_target_dependencies(kitti_odom_test rclcpp rcpputils std_msgs visualization_msgs geometry_msgs nav_msgs tf2 tf2_ros cv_bridge camera_models image_transport)
 target_link_libraries(kitti_odom_test vins_lib) 
@@ -68,6 +80,14 @@ target_link_libraries(kitti_odom_test vins_lib)
 add_executable(kitti_gps_test src/KITTIGPSTest.cpp)
 ament_target_dependencies(kitti_gps_test rclcpp rcpputils std_msgs visualization_msgs geometry_msgs nav_msgs tf2 tf2_ros cv_bridge camera_models image_transport)
 target_link_libraries(kitti_gps_test vins_lib) 
+
+add_executable(simple_bag_reader src/readBag.cpp)
+ament_target_dependencies(simple_bag_reader rclcpp rosbag2_transport geometry_msgs)
+
+install(TARGETS
+  simple_bag_reader
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 # added from DEBUG
 
@@ -80,6 +100,11 @@ install(
 # Install nodes
 install(
   TARGETS vins_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(
+  TARGETS of_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
